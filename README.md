@@ -17,6 +17,9 @@ The following steps were conducted within this analysis:
 
 ### Dependencies
 To download the most up-to-date Medicaid data, go to: https://data.medicaid.gov/dataset/6165f45b-ca93-5bb5-9d06-db29c692a360/data
+Or use the "MedicaidChipApps.EligibilityDet.Enroll.9.6.2025.csv"
+
+Use "Medicaid Analysis.py" to see data cleaning and visualizations code.
 
 Relevant packages: 
 import pandas as pd
