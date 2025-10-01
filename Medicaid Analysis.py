@@ -25,7 +25,7 @@ import matplotlib.ticker as ticker
 import seaborn as sns
 import textwrap
 
-#Load your dataset (e.g., CSV file)
+#Load your dataset (e.g., CSV file). #Edit pathname to where file is located on your device.
 df = pd.read_csv('/Users/emilyquick-cole/Downloads/MedicaidChipApps.EligibilityDet.Enroll.9.6.2025.csv')
 
 '''Data Exploration'''
@@ -69,7 +69,8 @@ print(updated_df['Preliminary or Updated'])
 # Check for duplicate rows, there are 0
 print("Total number of duplicated rows", updated_df.duplicated().sum())
 
-#Output the current dataset of updated data to an Excel file to review the information
+#Output the current dataset of updated data to an Excel file to review the information. 
+#Edit pathname to where you want file to be located on your device.
 updated_df.to_excel('/Users/emilyquick-cole/Documents/Python/medicaid_data/updated_dataframe.xlsx', index=False)
 
 '''Comments Based on Review of Excel
@@ -85,6 +86,7 @@ Compare stats for expanded vs non-expanded medicaid?
 sorted_df = (updated_df.sort_values(by = ['State Name', 'Reporting Period']))
 
 #Output the current dataset of updated data to an Excel file to review the information
+#Edit pathname to where you want file to be located on your device.
 sorted_df.to_excel('/Users/emilyquick-cole/Documents/Python/medicaid_data/sorted_dataframe.xlsx', index=False)
 
 ''' Decipher the Reporting Period Identifier for each row'''
@@ -127,6 +129,7 @@ print(state_month_freqtable)
 #and the state by reporting month frequency table
 
 #Set the index as true so that the state labels are shown
+#Edit pathname to where you want file to be located on your device.
 with pd.ExcelWriter('/Users/emilyquick-cole/Documents/Python/medicaid_data/sorted_dataframe.xlsx', engine='openpyxl') as writer:
     sorted_df.to_excel(writer,sheet_name="Sorted Data", index=False)
     state_fy_freqtable.to_excel(writer, sheet_name="Reporting Freq FY", index=True)
@@ -211,6 +214,7 @@ ax2.xaxis.tick_bottom()
 f.subplots_adjust(left=0.3, right=0.97, bottom=0.15, top=0.85)
 
 # Saving the plot as a PNG file
+#Edit pathname to where you want file to be located on your device.
 plt.savefig("/Users/emilyquick-cole/Documents/Python/medicaid_data/Fig1.png")
 # add plt.close() after you've saved the figure
 plt.close()
@@ -295,6 +299,7 @@ ax.get_xaxis().set_major_formatter(mpl.ticker.StrMethodFormatter('{x:,.0f}'))
 plt.legend(bbox_to_anchor=(1.01, 0.55), loc='upper left', borderaxespad=0)
 
 # Saving the plot as a PNG file
+#Edit pathname to where you want file to be located on your device.
 plt.savefig("/Users/emilyquick-cole/Documents/Python/medicaid_data/Fig2.png")
 # add plt.close() after you've saved the figure
 plt.close()
@@ -344,6 +349,7 @@ plt.ticklabel_format(style='plain', axis='y')
 g.get_yaxis().set_major_formatter(mpl.ticker.StrMethodFormatter('{x:,.0f}'))
 
 # Saving the plot as a PNG file
+#Edit pathname to where you want file to be located on your device.
 plt.savefig("/Users/emilyquick-cole/Documents/Python/medicaid_data/Fig3.png", bbox_inches="tight")
 # add plt.close() after you've saved the figure
 plt.close()
