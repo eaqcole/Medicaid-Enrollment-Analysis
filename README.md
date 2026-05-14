@@ -43,3 +43,15 @@ Emily Quick-Cole
 <img width="640" height="480" alt="Fig1" src="https://github.com/user-attachments/assets/9874f8bb-dfe1-40e5-89c0-ccddaeefb3a9" />
 <img width="1000" height="600" alt="Fig2" src="https://github.com/user-attachments/assets/1203e567-dab5-456e-965a-a8dcbfca700a" />
 <img width="812" height="457" alt="Fig3" src="https://github.com/user-attachments/assets/86eb6dd9-6c5d-4280-9c35-f5b82781762e" />
+
+## Log File
+<details>
+<summary>View Build Logs</summary>
+
+```text
+[2026-05-14 14:01:00] INFO: Starting compilation
+[2026-05-14 14:01:05] WARNING: Deprecated flag used
+[2026-05-14 14:01:10] SUCCESS: Build completed
+```
+
+</details>
