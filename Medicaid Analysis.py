@@ -184,11 +184,11 @@ state_month_freqtable = pd.crosstab(sorted_df['State Name'], sorted_df['Reportin
 #Record the rows and columns of the state by month frequency table and the table in the log file
 logger.info(
     f'State by FY frequency table generated — {len(state_fy_freqtable)} states across {len(state_fy_freqtable.columns)} fiscal years')
-logger.info(f"\n--- Cross-Tabulation Log ---\n{state_fy_freqtable.to_string()}\n----------------------------")
+#logger.info(f"\n--- Cross-Tabulation Log ---\n{state_fy_freqtable.to_string()}\n----------------------------")
 
 #Record the rows and columns of the state by month frequency table and the table in the log file
 logger.info(f'State by Month frequency table generaged - {len(state_month_freqtable)} states across {len(state_month_freqtable.columns)} months.')
-logger.info(f"\n--- Cross-Tabulation Log ---\n{state_month_freqtable.to_string()}\n----------------------------")
+#logger.info(f"\n--- Cross-Tabulation Log ---\n{state_month_freqtable.to_string()}\n----------------------------")
 
 
 print(state_fy_freqtable)
@@ -232,7 +232,7 @@ dc_chip_enroll = pd.DataFrame(chip_by_fy)
 dc_enroll = pd.concat([dc_med_enroll, dc_chip_enroll], axis=1)
 dc_enroll = dc_enroll.reset_index()
 
-logger.info(f"\n--- Data for Visual 1 ---\n{dc_enroll.to_string()}\n----------------------------")
+#logger.info(f"\n--- Data for Visual 1 ---\n{dc_enroll.to_string()}\n----------------------------")
 
 f, (ax1, ax2) = plt.subplots(ncols=1, nrows=2, sharex=True)
 
@@ -318,7 +318,7 @@ if states_with_one_period:
 print("There is data for ", len(state_counts), " states and a total of ", sum(state_counts), "records.")
 
 #Print the data for visual 2 to the log
-logger.info(f"\n--- Data for Visual 2 ---\n{dbell_data.to_string()}\n----------------------------")
+#logger.info(f"\n--- Data for Visual 2 ---\n{dbell_data.to_string()}\n----------------------------")
 
 #Set the state name and reporting period year column as a categorical type
 dbell_data['State Name'] = dbell_data['State Name'].astype('category')
@@ -387,7 +387,7 @@ logger.info(
     f'Figure 3 data — {midatl_med_by_year["State Name"].nunique()} Mid-Atlantic states, {len(midatl_med_by_year)} records')
 
 #Print the data for visual 3 to the log
-logger.info(f"\n--- Data for Visual 3 ---\n{midatl_med_by_year.to_string()}\n----------------------------")
+#logger.info(f"\n--- Data for Visual 3 ---\n{midatl_med_by_year.to_string()}\n----------------------------")
 
 #Set up the lineplot
 g = sns.lineplot(data=midatl_med_by_year, x="Reporting Period Fiscal Year",
