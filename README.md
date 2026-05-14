@@ -5,13 +5,14 @@ The purpose of this analysis is to explore Medicaid and CHIP enrollment data fro
 ## Description
 
 The following steps were conducted within this analysis: 
-1. Filtered data to only include "updated" records (as opposed to updated and preliminary).
-2. Order data rows by state name and reporting period so that they are chronological.
-3. Decipher the reporting period identifier to determine the fiscal year and month in which the record was uploaded for, for each state.
-4. Determine how many records were submitted by each state within each fiscal year
-5. Plot a line graph showing the fluctuations in median total enrollment over time for both Medicaid and CHIP in Washington D.C.
-6. Create a dumbbell plot comparing the total Medicaid enrollment values for Mid-Atlantic states from December 2019 to December 2024.
-7. Create a line graph showing the medican enrollment of CHIP and Medicaid enrollment for Mid-Atlantic States from 2013 to 2024.
+1. Set up a log file to capture data steps, checks, and flags.
+2. Filtered data to only include "updated" records (as opposed to updated and preliminary).
+3. Order data rows by state name and reporting period so that they are chronological.
+4. Decipher the reporting period identifier to determine the fiscal year and month in which the record was uploaded for, for each state.
+5. Determine how many records were submitted by each state within each fiscal year
+6. Plot a line graph showing the fluctuations in median total enrollment over time for both Medicaid and CHIP in Washington D.C.
+7. Create a dumbbell plot comparing the total Medicaid enrollment values for Mid-Atlantic states from December 2019 to December 2024.
+8. Create a line graph showing the medican enrollment of CHIP and Medicaid enrollment for Mid-Atlantic States from 2013 to 2024.
 
 ## Getting Started
 
