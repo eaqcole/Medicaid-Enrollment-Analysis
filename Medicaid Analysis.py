@@ -1,4 +1,3 @@
-
 ''' Medicaid Data Analyzer
 Date: September 6, 2025
 Name: Emily Quick-Cole
@@ -8,8 +7,11 @@ the data set, remove columns designated as containing "footnotes", convert the "
 usable metric for data visualization. The end product is an Excel data file containing the cleaned dataset and relevant
 cross-tabulations and a PDF(?) containing eploratory data visualizations.
 Data Source: https://www.medicaid.gov/medicaid/national-medicaid-chip-program-information/medicaid-chip-enrollment-data
+
 Date of Data Download: September 5, 2025
+
 Key Limitations:
+
 Results: This code file produces an Excel file with multiple tabs containing cleaned data and cross tabulations, as well as
 three visuals: a line plot showing median medicaid enrollment in Washington D.C. from 2017 to 2025;
 a dumbbell plot showing the total medicaid enrollment across mid atlantic states in December 2019 versus December 2024;
@@ -24,333 +26,395 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import seaborn as sns
 import textwrap
+import logging
+import os
+from datetime import datetime
 
-#Load your dataset (e.g., CSV file). #Edit pathname to where file is located on your device.
-df = pd.read_csv('/Users/emilyquick-cole/Downloads/MedicaidChipApps.EligibilityDet.Enroll.9.6.2025.csv')
+# -------------------------------------------------------
+# LOGGING SETUP
+# Log file is saved to the same directory as my outputs.
+# Each run creates a timestamped entry so logs accumulate
+# across runs rather than overwriting each other.
+# -------------------------------------------------------
+log_dir = '/Users/emilyquick-cole/Documents/Python/medicaid_data'
+log_path = os.path.join(log_dir, 'medicaid_analyzer.log')
 
-'''Data Exploration'''
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s | %(levelname)s | %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler(log_path),  # writes to log file
+        logging.StreamHandler()  # also prints to console
+    ]
+)
 
-#print the titles of the column headers
+logger = logging.getLogger(__name__)
+logger.info('=' * 60)
+logger.info('Medicaid Data Analyzer — Run started')
+logger.info('=' * 60)
+
+# -------------------------------------------------------
+# LOAD DATA
+# -------------------------------------------------------
+data_path = '/Users/emilyquick-cole/Downloads/MedicaidChipApps.EligibilityDet.Enroll.9.6.2025.csv'
+# Print the datapath name to the log
+logger.info(f'Loading data from: {data_path}')
+
+df = pd.read_csv(data_path)
+logger.info(f'Data loaded successfully — {df.shape[0]} rows, {df.shape[1]} columns')
+
+# -------------------------------------------------------
+# DATA EXPLORATION
+# -------------------------------------------------------
+logger.info('--- Data Exploration ---')
+
 print(df.columns)
-#print the column types
 print(df.dtypes)
-#print info about the data set
 print(df.info())
-print(df.describe()) #gives descriptive stats of numerical columns
-#Check for missing values
-print("Missing Values", df.isnull().sum())
+print(df.describe())
 
+missing = df.isnull().sum()
+logger.info(f'Missing value check complete — columns with missing values:\n{missing[missing > 0]}')
 
-'''Drop any columns with "footnote" in the title '''
+# -------------------------------------------------------
+# DROP FOOTNOTE COLUMNS
+# -------------------------------------------------------
+logger.info('--- Dropping footnote columns ---')
 
-#Save columns that end with "footnote" to a variable
 fncol = [col for col in df.columns if col.endswith('- footnotes')]
+# Prints out the names of the columns that were tagged as ending in footnote and dropped
+logger.info(f'Footnote columns identified for removal: {fncol}')
 
-#Drop the columns in this variable from the dataframe
+# Sets new dataframe as one without the footnote columns
 df = df.drop(columns=fncol, axis=1)
 
-#Check that the columns were dropped.
+# Print the remaining number of columns to the log
+logger.info(f'Footnote columns dropped — {df.shape[1]} columns remaining')
+
 print(df.columns)
 
-'''Filter data so that it only contains 'Updated' Records '''
-#The Preliminary or Updated column indicates the status of a record. Filter to only include the Updated Columns
+# -------------------------------------------------------
+# FILTER TO UPDATED RECORDS ONLY
+# -------------------------------------------------------
+logger.info('--- Filtering to Updated records ---')
 
-#First convert the column value to a string
+#cast the Preliminary or Updated column to a string
 df['Preliminary or Updated'] = df['Preliminary or Updated'].astype('string')
-#Check that the column was successfully converted to a string type
-print(df['Preliminary or Updated'].dtype)
+#Record in the log that we did this
+logger.info(f'"Preliminary or Updated" column converted to string dtype')
 
-#Filter the data to only include "Updated" records
 print(df['Preliminary or Updated'])
-#Create a new data frame that only contains updated records
+
+#Filter the dataframe to only rows where the Preliminary or Updated column contains a 'U'
 updated_df = df[df['Preliminary or Updated'] == 'U']
-#Check that the Preliminary or Updated column in the Updated Dataframe contains only records with "U"
+#save the number of rows that were excluded after filtering
+excluded = len(df) - len(updated_df)
+# Record to the log the number of rows that we kept and excluded
+logger.info(f'Filter applied — {len(updated_df)} Updated records retained, {excluded} non-Updated records excluded')
+
 print(updated_df['Preliminary or Updated'])
-# Check for duplicate rows, there are 0
-print("Total number of duplicated rows", updated_df.duplicated().sum())
 
-#Output the current dataset of updated data to an Excel file to review the information. 
-#Edit pathname to where you want file to be located on your device.
+# sum and save the number of duplicates
+dupes = updated_df.duplicated().sum()
+
+# Record whether duplicate records were found in the record
+if dupes > 0:
+    logger.warning(f'Duplicate rows detected: {dupes}')
+else:
+    logger.info(f'No duplicate rows found')
+#Print the updated_df to an Excel file for manual checks, as needed
 updated_df.to_excel('/Users/emilyquick-cole/Documents/Python/medicaid_data/updated_dataframe.xlsx', index=False)
+# Record printing the updated_df to an Excel for manual checks in the log file
+logger.info('Updated dataframe exported to updated_dataframe.xlsx')
 
-'''Comments Based on Review of Excel
-The reporting period identifier indicates the year and month that the data pertains to. These data, combined with the 
-state identifier, can be combined to create a unique identifier. The reporting period column can also be split to create
-a fiscal year and month column. 
+# -------------------------------------------------------
+# SORT DATA
+# -------------------------------------------------------
+logger.info('--- Sorting data by State Name and Reporting Period ---')
 
-Key data columns we're interested in: Total Medicaid Enrollment, Total CHIP Enrollment
-Compare stats for expanded vs non-expanded medicaid? 
-'''
+#make a new dataframe where the State Name and reporting period are sorted
+sorted_df = (updated_df.sort_values(by=['State Name', 'Reporting Period']))
+#Record this step in the log file
+logger.info('Data sorted successfully by State Name and Reporting Period.')
 
-#Order the rows alphabetically by state and within that, by reporting period
-sorted_df = (updated_df.sort_values(by = ['State Name', 'Reporting Period']))
-
-#Output the current dataset of updated data to an Excel file to review the information
-#Edit pathname to where you want file to be located on your device.
+#Export the sorted_df to Excel for manual checks
 sorted_df.to_excel('/Users/emilyquick-cole/Documents/Python/medicaid_data/sorted_dataframe.xlsx', index=False)
+logger.info('Sorted dataframe exported to sorted_dataframe.xlsx')
 
-''' Decipher the Reporting Period Identifier for each row'''
-# Make new, empty columns.
-sorted_df.insert(3, "Reporting Period Fiscal Year", value = np.nan)
-sorted_df.insert(4, "Reporting Period Month", value = np.nan)
+# -------------------------------------------------------
+# PARSE REPORTING PERIOD INTO YEAR AND MONTH
+# -------------------------------------------------------
+logger.info('--- Parsing Reporting Period into Fiscal Year and Month columns ---')
+#insert two new columns to represent the fiscal year and month
+sorted_df.insert(3, "Reporting Period Fiscal Year", value=np.nan)
+sorted_df.insert(4, "Reporting Period Month", value=np.nan)
 
-#Check that the columns were added successfully
-print(sorted_df.columns)
-
-#Iterate through Reporting Period identifier and populate data into the other columns
-
-#set Reporting Period as a string variable
+#convert teh reporting period column to a string type
 sorted_df['Reporting Period'] = sorted_df['Reporting Period'].astype('string')
-#Pull out the first four characters of the reporting period identifier and save as fiscal year. Pull out the
-#last two characters of reporting period identifier and save as month
-for row in sorted_df['Reporting Period']:
-    sorted_df['Reporting Period Fiscal Year'] = sorted_df['Reporting Period'].str.slice(0, 4)
-    sorted_df['Reporting Period Month'] = sorted_df['Reporting Period'].str.slice(4, 6)
-    break
-#Check that the values were saved appropriately
+
+#Fill the new columns by slicing the reporting period
+sorted_df['Reporting Period Fiscal Year'] = sorted_df['Reporting Period'].str.slice(0, 4)
+sorted_df['Reporting Period Month'] = sorted_df['Reporting Period'].str.slice(4, 6)
+
+#Print the range of the fiscal years to the log
+logger.info(
+    f'Fiscal Year range: {sorted_df["Reporting Period Fiscal Year"].min()} to {sorted_df["Reporting Period Fiscal Year"].max()}')
+#Print the list of all the months present in the reporting period month column to the log
+logger.info(
+    f'Months present: {sorted_df["Reporting Period Month"].unique().tolist() if False else sorted_df["Reporting Period Month"].unique().tolist()}')
+
+
 print(sorted_df['Reporting Period Fiscal Year'])
 print(sorted_df['Reporting Period Month'])
 
-'''How many records were submitted by each state across all fiscal years, and for how many months within each fiscal year?'''
+# -------------------------------------------------------
+# FREQUENCY TABLES
+# -------------------------------------------------------
+logger.info('--- Generating frequency tables ---')
 
-#To answer this question, first set our two variables of interest as categorical
+#cast the state name and reporting period fiscal year  column as categorical
 sorted_df['State Name'] = sorted_df['State Name'].astype('category')
 sorted_df['Reporting Period Fiscal Years'] = sorted_df['Reporting Period Fiscal Year'].astype('category')
 
-#Use the cross tab function to compare how many states reported in each fiscal year, and how many times
-state_fy_freqtable = pd.crosstab(sorted_df['State Name'],sorted_df['Reporting Period Fiscal Years'])
-print(state_fy_freqtable)
+#create frequency table of state name and reporting period fiscal years and months
+state_fy_freqtable = pd.crosstab(sorted_df['State Name'], sorted_df['Reporting Period Fiscal Years'])
+state_month_freqtable = pd.crosstab(sorted_df['State Name'], sorted_df['Reporting Period Month'])
 
-#Use the same function above for states and reporting months
-state_month_freqtable = pd.crosstab(sorted_df['State Name'],sorted_df['Reporting Period Month'])
+#Record the rows and columns of the state by month frequency table and the table in the log file
+logger.info(
+    f'State by FY frequency table generated — {len(state_fy_freqtable)} states across {len(state_fy_freqtable.columns)} fiscal years')
+logger.info(f"\n--- Cross-Tabulation Log ---\n{state_fy_freqtable.to_string()}\n----------------------------")
+
+#Record the rows and columns of the state by month frequency table and the table in the log file
+logger.info(f'State by Month frequency table generaged - {len(state_month_freqtable)} states across {len(state_month_freqtable.columns)} months.')
+logger.info(f"\n--- Cross-Tabulation Log ---\n{state_month_freqtable.to_string()}\n----------------------------")
+
+
+print(state_fy_freqtable)
 print(state_month_freqtable)
 
-#Output an Excel file that contains the complete sorted dataframe, the State by reporting fiscal year frequency table,
-#and the state by reporting month frequency table
-
-#Set the index as true so that the state labels are shown
-#Edit pathname to where you want file to be located on your device.
-with pd.ExcelWriter('/Users/emilyquick-cole/Documents/Python/medicaid_data/sorted_dataframe.xlsx', engine='openpyxl') as writer:
-    sorted_df.to_excel(writer,sheet_name="Sorted Data", index=False)
+#export the sorted dataframe and both frequency tables to an Excel file
+with pd.ExcelWriter('/Users/emilyquick-cole/Documents/Python/medicaid_data/sorted_dataframe.xlsx',
+                    engine='openpyxl') as writer:
+    sorted_df.to_excel(writer, sheet_name="Sorted Data", index=False)
     state_fy_freqtable.to_excel(writer, sheet_name="Reporting Freq FY", index=True)
     state_month_freqtable.to_excel(writer, sheet_name="Reporting FY Month", index=True)
 
-'''Visualizations'''
+#Record exporting the sorted dataframe and both frequency tables to an Excel file
+logger.info('Sorted dataframe and frequency tables exported to sorted_dataframe.xlsx')
 
-'''Make a line graph showing the fluctuations in median total enrollment over time for both Medicaid and CHIP'''
+# -------------------------------------------------------
+# VISUALIZATION 1: DC Medicaid and CHIP Enrollment Line Plot
+# -------------------------------------------------------
+logger.info('--- Figure 1: DC Medicaid and CHIP enrollment line plot ---')
 
-#set State Name to a categorial variable
+# Cast the State Name to a string
 sorted_df['State Name'] = sorted_df['State Name'].astype('string')
 
-#iterate through and take the median total medicaid enrollment for each fiscal year, only for Washington DC
-for i in sorted_df['State Name']:
-    if i == 'District of Columbia':
-        median_by_fy = sorted_df.groupby('Reporting Period Fiscal Year')['Total Medicaid Enrollment'].median()
-        chip_by_fy = sorted_df.groupby('Reporting Period Fiscal Year')['Total CHIP Enrollment'].median()
-        print("Median Medicaid by FY", median_by_fy)
-        print("Median CHIP by FY", chip_by_fy)
+#filter the dataframe to rows that have D.C. as the State
+dc_df = sorted_df[sorted_df['State Name'] == 'District of Columbia']
 
-#Convert both outputs to a data frame
+#Find the median Medicaid Enrollment by Reporting Period Fiscal Year
+median_by_fy = dc_df.groupby('Reporting Period Fiscal Year')['Total Medicaid Enrollment'].median()
+#Find the median Medicaid CHIP Enrollment by Reporting Period Fiscal Year
+chip_by_fy = dc_df.groupby('Reporting Period Fiscal Year')['Total CHIP Enrollment'].median()
+
+#Flag if the state D.C is not in the sorted_dataframe
+if 'District of Columbia' not in sorted_df['State Name'].values:
+    logger.warning('District of Columbia not found in dataset — Figure 1 may be empty or incorrect')
+else:
+    logger.info('District of Columbia records confirmed present for Figure 1')
+
+
 dc_med_enroll = pd.DataFrame(median_by_fy)
 dc_chip_enroll = pd.DataFrame(chip_by_fy)
-
-#Concatonate the two dataframes
-dc_enroll= pd.concat([dc_med_enroll, dc_chip_enroll], axis=1)
-print(dc_enroll.columns)
-
-#Reset the index so that the fiscal years are interpreted as a column, not an index.
+dc_enroll = pd.concat([dc_med_enroll, dc_chip_enroll], axis=1)
 dc_enroll = dc_enroll.reset_index()
-#Check that the index reset
-print("The columns are", dc_enroll.columns)
 
-#We want the graphic to have a broken y-axis to the differences in enrollment between Medicaid and CHIP
+logger.info(f"\n--- Data for Visual 1 ---\n{dc_enroll.to_string()}\n----------------------------")
 
-#This is the figure our two plots will reside on we need a lower part (anything below the cutoff), which will be ax2
-#and an upper part (anything above the cutoff) which will be ax1
-#because we have only two plots above each other, we set ncols=1 and nrows=2
-#also, they should share an x axis, which is why we set sharex=True
 f, (ax1, ax2) = plt.subplots(ncols=1, nrows=2, sharex=True)
 
-#Plot the two graphs
-ax1 = sns.lineplot(data = dc_enroll, x= 'Reporting Period Fiscal Year',
+#Create the line for Total Medicaid Enrollment
+ax1 = sns.lineplot(data=dc_enroll, x='Reporting Period Fiscal Year',
                    y='Total Medicaid Enrollment', ax=ax1,
-                   color = 'blue', marker = "o", label = 'Medicaid') #color = 'blue'
-ax2 = sns.lineplot(data = dc_enroll, x = 'Reporting Period Fiscal Year',
-                   y = 'Total CHIP Enrollment', ax = ax2,
-                   color = 'orange', marker = 'o', label = 'CHIP', ) #color = 'orange'
-
-
-#Set the limits for each individual y-axis
+                   color='blue', marker="o", label='Medicaid')
+# Create the line for Total CHIP Enrollment
+ax2 = sns.lineplot(data=dc_enroll, x='Reporting Period Fiscal Year',
+                   y='Total CHIP Enrollment', ax=ax2,
+                   color='orange', marker='o', label='CHIP')
+#Format the line plot
 ax1.set_ylim(800000, 1200000)
 ax2.set_ylim(40000, 100000)
-
-#Remove scientific notation from both y-axes
 ax1.ticklabel_format(style='plain', useOffset=False, axis='y')
 ax2.ticklabel_format(style='plain', useOffset=False, axis='y')
-
-#The upper part does not need its own x-axis as it shares one with the lower part
 ax1.get_xaxis().set_visible(False)
 
-#Create a title label and label for the title and x-axis
 f.text(0.08, 0.93, "Median Medicaid Enrollment in D.C. From 2017 to 2025",
-       va="center", rotation="horizontal", fontsize=16, weight = "bold")
-f.text(x = 0.45, y = 0.07, s="Fiscal Year", va="center",
-       rotation="horizontal", fontsize=12, weight = "bold")
+       va="center", rotation="horizontal", fontsize=16, weight="bold")
+f.text(x=0.45, y=0.07, s="Fiscal Year", va="center",
+       rotation="horizontal", fontsize=12, weight="bold")
 plt.xlabel("")
-
-#By default, each part will get its own "Total enrolled" y-axis label, but we want to set a common for the whole figure
-#Remove the y label for both subplots
 ax1.set_ylabel("")
 ax2.set_ylabel("")
-# then, set a new label on the plot (basically just a piece of text) and move it to where it makes sense (requires trial and error)
 f.text(0.03, 0.55, "Total Enrolled", va="center",
-       rotation="vertical", fontsize = 12, weight = "bold")
-
-#Put some ticks on the top of the upper part and bottom of the lower part for style
+       rotation="vertical", fontsize=12, weight="bold")
 ax1.xaxis.tick_top()
 ax2.xaxis.tick_bottom()
-
-#Finally, adjust everything a bit to make it prettier (this just moves everything, best to try and iterate)
 f.subplots_adjust(left=0.3, right=0.97, bottom=0.15, top=0.85)
 
-# Saving the plot as a PNG file
-#Edit pathname to where you want file to be located on your device.
-plt.savefig("/Users/emilyquick-cole/Documents/Python/medicaid_data/Fig1.png")
-# add plt.close() after you've saved the figure
+#Export the figure
+fig1_path = '/Users/emilyquick-cole/Documents/Python/medicaid_data/Fig1.png'
+plt.savefig(fig1_path)
 plt.close()
 
-'''Compare the Total Medicaid nrollment values for Mid Atlantic States at end of 2019 to end of 2024
-A dumbbell chart can take into account that we have 50 states + DC, two distinct points in time, and a numerical
-variable of Medicaid and CHIP enrollment
-'''
-'''Format the data to make the dummbbell plot '''
-dbell_data= sorted_df[['State Name', 'Reporting Period Fiscal Year', 'Reporting Period Month', 'Total Medicaid Enrollment']]
-#Filter to only include records from 2019 and 2024
-dbell_data = dbell_data[(dbell_data['Reporting Period Fiscal Year'] == '2019') | (dbell_data['Reporting Period Fiscal Year'] == '2024')]
+#Record the file path
+logger.info(f'Figure 1 saved to {fig1_path}')
 
-#Filter data to only include December records
+# -------------------------------------------------------
+# VISUALIZATION 2: Mid-Atlantic Dumbbell Chart
+# -------------------------------------------------------
+logger.info('--- Figure 2: Mid-Atlantic dumbbell chart ---')
+
+#Create a list of states that are mid-atlantic
+mid_atl = ['New York', 'New Jersey', 'Pennsylvania', 'Delaware', 'Maryland', 'Virginia', 'West Virginia',
+           'District of Columbia']
+#select the columns from sorted_df that we want to produce the next visual
+dbell_data = sorted_df[
+    ['State Name', 'Reporting Period Fiscal Year', 'Reporting Period Month', 'Total Medicaid Enrollment']]
+#filter the dataframe to only rows where the fiscal year is 2019 or 2024
+dbell_data = dbell_data[
+    (dbell_data['Reporting Period Fiscal Year'] == '2019') | (dbell_data['Reporting Period Fiscal Year'] == '2024')]
+
+#filter the data so that we only include data from December
 dbell_data = dbell_data[(dbell_data['Reporting Period Month'] == '12')]
 
-#Filter data to only include Mid Atlantic State Records
-# Includes New York, New Jersey, Pennsylvania, Delaware, Maryland, Virginia, West Virginia, and the national capital of Washington, D.C.
-mid_atl = ['New York', 'New Jersey', 'Pennsylvania', 'Delaware', 'Maryland', 'Virginia', 'West Virginia', 'District of Columbia']
+#filter the data to only include states that are mid-atlantic states
 dbell_data = dbell_data[(dbell_data['State Name'].isin(mid_atl))]
 
-#Confirm that each state has two records
+#save value counts for each state in the data frame
 state_counts = dbell_data['State Name'].value_counts()
+#Log the number of states and the total records -- should be 16.
+logger.info(f'Dumbbell chart data — {len(state_counts)} states, {sum(state_counts)} total records')
+
+# Create a flag in the log if the number of datapoints in the filtered data is incorrect.
+if sum(state_counts) == 16:
+    logger.info(f'There are 8 states and 16 datapoints in the filtered data, which is what is expected.')
+else:
+    logger.info(f'There is an incorrect number of datapoints in the filtered data.')
+
+# Save any states in mid-atlantic that do not appear in the datasets
+missing_states = [s for s in mid_atl if s not in state_counts.index]
+# If there are any missing states, print these to the log
+if missing_states:
+    logger.warning(f'The following Mid-Atlantic states are missing from dumbbell data: {missing_states}')
+
+# If there is a state that has less than 2 points, print these to the log
+states_with_one_period = state_counts[state_counts < 2].index.tolist()
+if states_with_one_period:
+    logger.warning(f'These states are missing data for one of the two time periods: {states_with_one_period}')
+
 print("There is data for ", len(state_counts), " states and a total of ", sum(state_counts), "records.")
 
-#set the State and Reporting period categories as categorical
+#Print the data for visual 2 to the log
+logger.info(f"\n--- Data for Visual 2 ---\n{dbell_data.to_string()}\n----------------------------")
+
+#Set the state name and reporting period year column as a categorical type
 dbell_data['State Name'] = dbell_data['State Name'].astype('category')
 dbell_data['Reporting Period Fiscal Year'] = dbell_data['Reporting Period Fiscal Year'].astype('category')
-#Reset the index
+#reset the index of the data set
 dbell_data = dbell_data.reset_index()
 
-'''Develop the visual'''
-# Set up the plot style
+#Format the visual
 sns.set_theme(style="darkgrid")
 fig, ax = plt.subplots(figsize=(10, 6))
 
-# Plot the markers using seaborn's pointplot
-# `dodge` is set to False so the markers are plotted on the same vertical line
 sns.pointplot(data=dbell_data, x='Total Medicaid Enrollment', y='State Name', hue='Reporting Period Fiscal Year',
-              dodge=False, join=False, marker='o',
-              markersize=10, ax=ax)
-
-# Draw the connecting lines manually using matplotlib
-pivot_dbell = dbell_data.pivot(index = 'State Name',
-                               columns = 'Reporting Period Fiscal Year',
-                               values = 'Total Medicaid Enrollment').reset_index()
-
-#iterate through rows to draw the lines connecting points
+              dodge=False, join=False, marker='o', markersize=10, ax=ax)
+#pivot the dbell dataframe
+pivot_dbell = dbell_data.pivot(index='State Name', columns='Reporting Period Fiscal Year',
+                               values='Total Medicaid Enrollment').reset_index()
+#iterate over the pivoted dataframe to plot the datapoints
 for index, row in pivot_dbell.iterrows():
-    #ax.plot([row['2019'], row['2024']],[row['State Name'], row['State Name']],color='gray', zorder=0)
     ax.plot([row['2019'], row['2024']], [row['State Name'], row['State Name']], color='gray', linestyle='-',
             linewidth=1)
 
-# Add titles and labels for clarity
-ax.set_title('Difference in Total Medicaid Enrollment in Mid-Atlantic States From December 2019 to December 2024', fontsize=14, weight = 'bold')
-ax.set_xlabel('People Enrolled', fontsize=14, weight = 'bold')
-#ax.set_yticklabels(ax.get_yticklabels(), rotation=45)
-ax.set_ylabel('')  # Y-axis labels are self-explanatory
+ax.set_title('Difference in Total Medicaid Enrollment in Mid-Atlantic States From December 2019 to December 2024',
+             fontsize=14, weight='bold')
+ax.set_xlabel('People Enrolled', fontsize=14, weight='bold')
+ax.set_ylabel('')
 
-#Adjust the y labels so that they don't run off the page
+
 def wrap_labels(ax, width, break_long_words=False):
     labels = []
     for label in ax.get_yticklabels():
         text = label.get_text()
-        labels.append(textwrap.fill(text, width=width,
-                      break_long_words=break_long_words))
+        labels.append(textwrap.fill(text, width=width, break_long_words=break_long_words))
     ax.set_yticklabels(labels, rotation=0)
 
-#wrap the labels so they all fit
+
 wrap_labels(ax, 13)
 
-# Improve the legend title and placement
 handles, labels = ax.get_legend_handles_labels()
 ax.legend(handles, ['2019', '2024'], title='Fiscal Year')
-
-# Disable scientific notation and offset on the x-axis
 ax.ticklabel_format(useOffset=False, style='plain', axis='x')
-#Add commas to the x-axis labels
 ax.get_xaxis().set_major_formatter(mpl.ticker.StrMethodFormatter('{x:,.0f}'))
-
-# Shift the plot to the right by adjusting the 'left' parameter
 plt.legend(bbox_to_anchor=(1.01, 0.55), loc='upper left', borderaxespad=0)
 
-# Saving the plot as a PNG file
-#Edit pathname to where you want file to be located on your device.
-plt.savefig("/Users/emilyquick-cole/Documents/Python/medicaid_data/Fig2.png")
-# add plt.close() after you've saved the figure
+fig2_path = '/Users/emilyquick-cole/Documents/Python/medicaid_data/Fig2.png'
+plt.savefig(fig2_path)
 plt.close()
 
-'''Final Visual: Median Enrollment of CHIP and Medicaid Enrollment for Mid-Atlantic States'''
+#Save the file path for visual 2 to the log
+logger.info(f'Figure 2 saved to {fig2_path}')
 
-#Use our sorted dataframe to determine the median Total CHIP and Medicaid enrollment from 2013 to 2024
-state_med_by_year = sorted_df.groupby(['State Name', 'Reporting Period Fiscal Year'])['Total Medicaid and CHIP Enrollment'].median()
-#print('state med by year', state_med_by_year)
+# -------------------------------------------------------
+# VISUALIZATION 3: Mid-Atlantic CHIP and Medicaid Line Plot
+# -------------------------------------------------------
+logger.info('--- Figure 3: Mid-Atlantic CHIP and Medicaid line plot ---')
 
-#convert to a dataframe
-state_med_by_year = pd.DataFrame(state_med_by_year)
-state_med_by_year = state_med_by_year.reset_index()
-
-#Filter to only include mid-atlantic states
+#group the sorted dataframe by State Name and Reporting Period Fiscal Year and take the median of Total Medicaid and CHIP Enrollment
+state_med_by_year = sorted_df.groupby(['State Name', 'Reporting Period Fiscal Year'])[
+    'Total Medicaid and CHIP Enrollment'].median()
+#reset the index of this grouped dataframe
+state_med_by_year = pd.DataFrame(state_med_by_year).reset_index()
+#filter the dataframe to only include rows with State Name in mid-atl states
 midatl_med_by_year = state_med_by_year[(state_med_by_year['State Name'].isin(mid_atl))]
 
-#Make the line graph
-g = sns.lineplot(data = midatl_med_by_year,
-             x="Reporting Period Fiscal Year",
-             y="Total Medicaid and CHIP Enrollment",
-             hue="State Name",
-             #legend = False,
-             palette = "flare",
-             style = 'State Name')
+# Print the unique states and the number of records in this filtered dataframe
+logger.info(
+    f'Figure 3 data — {midatl_med_by_year["State Name"].nunique()} Mid-Atlantic states, {len(midatl_med_by_year)} records')
 
-# Move the legend outside the plot area
+#Print the data for visual 3 to the log
+logger.info(f"\n--- Data for Visual 3 ---\n{midatl_med_by_year.to_string()}\n----------------------------")
+
+#Set up the lineplot
+g = sns.lineplot(data=midatl_med_by_year, x="Reporting Period Fiscal Year",
+                 y="Total Medicaid and CHIP Enrollment", hue="State Name",
+                 palette="flare", style='State Name')
+
 sns.move_legend(ax, "lower center", bbox_to_anchor=(1, 1))
-
-#set the tehme
 sns.set_theme(style="darkgrid")
-
-#move the legend so it's off the grid
 sns.move_legend(g, "upper left", bbox_to_anchor=(1, 0.75))
 
-#Adjust the title, axis, and legend labels
-g.set_title("Median CHIP and Medicaid Enrollment for Mid-Atlantic States from 2013 to 2024", fontsize = 12, weight = 'bold')
-#g.set(xlabel='Fiscal Year', ylabel='People Enrolled')
-g.set_xlabel( "Fiscal Year", fontsize=12, weight = 'bold')
-g.set_ylabel('People Enrolled', fontsize = 12, weight = 'bold')
-plt.setp(g.get_legend().get_title(), weight = 'bold')
-
-# Disable scientific notation and offset on the x-axis
+g.set_title("Median CHIP and Medicaid Enrollment for Mid-Atlantic States from 2013 to 2024", fontsize=12, weight='bold')
+g.set_xlabel("Fiscal Year", fontsize=12, weight='bold')
+g.set_ylabel('People Enrolled', fontsize=12, weight='bold')
+plt.setp(g.get_legend().get_title(), weight='bold')
 plt.ticklabel_format(style='plain', axis='y')
-
-#Add commas to the y-axis labels
 g.get_yaxis().set_major_formatter(mpl.ticker.StrMethodFormatter('{x:,.0f}'))
 
-# Saving the plot as a PNG file
-#Edit pathname to where you want file to be located on your device.
-plt.savefig("/Users/emilyquick-cole/Documents/Python/medicaid_data/Fig3.png", bbox_inches="tight")
-# add plt.close() after you've saved the figure
+fig3_path = '/Users/emilyquick-cole/Documents/Python/medicaid_data/Fig3.png'
+plt.savefig(fig3_path, bbox_inches="tight")
 plt.close()
 
+#Print the filepath to figure 3 to the log
+logger.info(f'Figure 3 saved to {fig3_path}')
+
+# -------------------------------------------------------
+# RUN COMPLETE
+# -------------------------------------------------------
+logger.info('=' * 60)
+logger.info('Medicaid Data Analyzer — Run complete')
+logger.info('=' * 60)
